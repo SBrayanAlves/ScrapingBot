@@ -1,0 +1,65 @@
+Projeto ScrapingBot
+
+Ideia: Um bot de monitoramento que vai puxar um dado em especifico de uma pagina web e fazer uma regra de negocio com retorno via Discord
+
+Passo a Passo:
+
+1 -> Criar o Banco de Dados ✓
+2 -> Fazer a Requisicao ✓
+3 -> Pegar o numero ✓
+4 -> Comparacao com banco de dados ✓
+    4.1 -> Se o numero for igual ✓
+        4.1.1 -> Nao faca nada ✓
+    4.2 -> Se o numero for maior ✓
+        4.2.1 -> Notificar no Discord + Salvar novo numero no banco de dados ✓
+    4.3 -> Se o numero for menor ✓
+        4.3.1 -> Apenas salve o numero no banco de dados ✓
+5 -> Looping - 1 a 3 minutos ✓
+6 -> Dia de funcionamento (Terca, Quinta, Domingo) - 8 ate as 19 ✓ 
+7 -> Limpeza do banco de dados ✓
+
+Tecnologias:
+
+- Python
+- Requests
+- SQLite3
+- Python-Dotenv
+
+# ---
+Codigo modularizado
+
+# Scraper.py 
+Responsavel por puxar o dado necessario -> requests na URL
+return data
+
+# Database.py 
+Responsavel por fazer a conexao com o banco de dados -> criacao/conexao
+return query, connect
+
+# Service.py -> Roda a logica: Chamada principal -> Main.py
+Processo: Main -chama> Service -chama> scraper -retorna> Service -roda e chama> Notifier
+Responsavel pela logica de negocio, faz a comparacao
+Se a data for maior que numero antigo chama o notifier.py passando a mensagem
+
+# Notifier.py 
+Responsavel por enviar a mensagem para o Discord
+E chamado pelo Service.py passando o discord_message
+
+
+ScrapingBot/
+├── src/
+│   ├── scraper.py      # coleta dados
+│   ├── database.py     # acesso ao banco
+│   ├── service.py      # lógica de negócio
+│   ├── notifier.py     # envio de notificações
+├── .env
+├── database.db
+├── cleanup.py
+├── main.py
+
+--- 
+Looping 
+
+Cronjob
+
+Cronjon -> Responsavel por rodar o arquivo
