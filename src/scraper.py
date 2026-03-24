@@ -2,40 +2,43 @@ import os
 import requests
 import time
 import random
+import logging
 from dotenv import load_dotenv
 
-# Carrega as Variaveis de Ambiente
 load_dotenv()
 
-# Pega os dados
 def CatchData():
-
     user_agents = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
-    "Mozilla/5.0 (X11; Linux x86_64) Firefox/118.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0"
     ]
-    header = {
-    "User-Agent": random.choice(user_agents),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1"
+    
+    ua_escolhido = random.choice(user_agents)
+    headers_furtivos = {
+        "User-Agent": ua_escolhido,
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin" 
     }
 
     TRY = 3
-    for _ in range(TRY):
+    session = requests.Session()
+    session.headers.update(headers_furtivos)
+    for tentativa in range(TRY):
         try:
-            session = requests.session()
-            session.headers.update({'User-Agent': header})
-            time.sleep(random.uniform(1, 3))
-            response = session.get(os.getenv("URL"), headers=header)
+            time.sleep(random.uniform(1.5, 3.5)) 
+            response = session.get(os.getenv("URL"), timeout=10)
             if response.status_code in (200, 204):
+                logging.info("Dado Recolhido Com Sucesso!")
                 final_response = response.json()
                 return final_response["data"]["productSearch"]["recordsFiltered"]
-            print(f"[ERRO]! Status {response.status_code}!")
-            time.sleep(2)
-        except Exception as error:
-            print(f"Error: {error}")
-        time.sleep(2)
+            print(f"[AVISO] Tentativa {tentativa + 1}: Status {response.status_code} recebido.")
+        except requests.exceptions.RequestException as error:
+            print(f"[ERRO DE REDE] Tentativa {tentativa + 1}: {error}")
+        time.sleep(random.uniform(3, 5))
     return None

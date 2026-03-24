@@ -1,5 +1,6 @@
 import os
 import requests
+import logging
 from dotenv import load_dotenv
 
 # Carrega as Variaveis de Ambiente
@@ -15,8 +16,8 @@ def SendMessage(discord_message):
         try:
             discord_response = requests.post(WebHook, json=discord_message)
             if discord_response.status_code in (200, 204):
-                print("Notificacao enviada")
+                logging.info("Enviando Mensagem!")
                 break
-            print("Erro ao enviar!")
+            logging.info("Erro ao Enviar Mensagem!")
         except Exception as e:
             print(f"Error: {e}")

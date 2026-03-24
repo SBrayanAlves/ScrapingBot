@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from .scraper import CatchData
 from .database import StartSetup
@@ -30,6 +31,7 @@ def ScrapingBot():
             #   4.1.1 -> Notificar no Discord + Salvar novo numero no banco de dados
             query.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data, current_date,))
             connect.commit()
+            logging.info("Novos Produtos Encontrados e Salvos com Sucesso!")
             discord_message = {
                 "username": "ScrapingBot",
                 "content": f"🚨 **NOVOS PRODUTOS ENCONTRADOS!**\n\nAcabou de cair: **{data - db_data} PRODUTO(S)**!"
