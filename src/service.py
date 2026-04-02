@@ -35,7 +35,7 @@ def ScrapingBot():
             logging.info("Novos Produtos Encontrados e Salvos com Sucesso!")
             discord_message = {
                 "username": "ScrapingBot",
-                "content": f"🚨 **NOVOS PRODUTOS ENCONTRADOS!**\n\nAcabou de cair: **{data - db_data} PRODUTO(S)**!"
+                "content": f"@everyone 🚨 **NOVOS PRODUTOS!**\n\nAcabou de cair: **{data - db_data} PRODUTO(S)**!"
             }
             SendMessage(discord_message)
 

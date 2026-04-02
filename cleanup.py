@@ -5,7 +5,7 @@ def Clear():
 
     query.execute(
         '''
-        DELETE FROM products WHERE date < date("now", "-7 days")
+        DELETE FROM products WHERE date < date("now", "-6 days")
         '''
     )
 
@@ -17,3 +17,5 @@ def Clear():
         print("Limpeza + VACUUM efetuados com sucesso!")
     else:
         print("Banco de dados ja esta limpo!")
+
+Clear()
