@@ -3,42 +3,88 @@ import requests
 import time
 import random
 import logging
+from .webhook import LoggingsBot
+from .notifier import send_message
+from typing import Optional
 from dotenv import load_dotenv
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 load_dotenv()
 
-def CatchData():
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0"
-    ]
-    
-    ua_escolhido = random.choice(user_agents)
-    headers_furtivos = {
-        "User-Agent": ua_escolhido,
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin" 
-    }
+class ScraperClient:
+    def __init__(self):
+        self.url = os.getenv("URL")
+        self.session = self.create_session()
 
-    TRY = 3
-    session = requests.Session()
-    session.headers.update(headers_furtivos)
-    for tentativa in range(TRY):
+    def create_session(self) -> requests.Session:
+        session = requests.Session()
+
+        retry = Retry(
+            total=3,
+            backoff_factor=2,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET", "POST"]
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        session.headers.update(self._get_headers())
+        return session
+    
+    def _get_headers(self) -> dict:
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
+            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        ]
+        return {
+            "User-Agent": random.choice(user_agents),
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "pt-BR,pt;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin"
+        }
+
+    def catch_data(self, scraper) -> Optional[int]:
         try:
-            time.sleep(random.uniform(1.5, 3.5)) 
-            response = session.get(os.getenv("URL"), timeout=10)
-            if response.status_code in (200, 204):
-                logging.info("Dado Recolhido Com Sucesso!")
-                final_response = response.json()
-                return final_response["data"]["productSearch"]["recordsFiltered"]
-            print(f"[AVISO] Tentativa {tentativa + 1}: Status {response.status_code} recebido.")
+            time.sleep(random.uniform(1.5, 3.5))
+            response = self.session.get(self.url, timeout=10)
+            if response.raise_for_status():
+                logging.warning("Nao foi possivel estabelecer conexao com o site")
+
+            data = response.json()
+            amount = data.get("data", {}).get("productSearch", {}).get("recordsFiltered", {})
+            
+            if amount is None:
+                message = {
+                    "username": "LoggingsBot",
+                    "content": f"Dado nao encontrado no JSON!"
+                }
+                send_message(discord_message=message, canal=LoggingsBot)
+                logging.warning(f"Dado nao encontrado no JSON!")
+                raise ValueError("Dado nao encontrado")
+                
+            message = {
+                "username": "LoggingsBot",
+                "content": f"Quantidade de produtos atual: {amount}"
+            }
+            send_message(discord_message=message, canal=LoggingsBot)
+            return int(amount)
+        
         except requests.exceptions.RequestException as error:
-            print(f"[ERRO DE REDE] Tentativa {tentativa + 1}: {error}")
-        time.sleep(random.uniform(3, 5))
-    return None
+            message = {
+                "username": "LoggingsBot",
+                "content": f"[ERRO FINAL DE REDE] - {error}"
+            }
+            send_message(discord_message=message, canal=LoggingsBot)
+            logging.warning(f"[ERRO FINAL DE REDE] - {error}")
+            return None

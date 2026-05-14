@@ -1,46 +1,79 @@
 import logging
 from datetime import datetime
-from .scraper import CatchData
-from .database import StartSetup
-from .notifier import SendMessage
+from .webhook import LoggingsBot, ScrapingBot as DScraping
+from .scraper import ScraperClient
+from .database import DataBaseManager
+from .notifier import send_message
 
-# Regra de Negocio 
+# Regra de Negocio
 
-def ScrapingBot():
+def validate_data(data: any) -> int:
+    if data is None:
+        raise ValueError("Scraper retornou None")
 
-    query, connect = StartSetup()
-    data = CatchData()
+    try:
+        amount = int(data)
+        if amount < 0:
+            raise ValueError("Valor negativo")
+        return amount
+    except (ValueError, TypeError) as e:
+        logging.error(f"Validacao Falhou: {e}")
+        raise
 
-    current_date = datetime.now().strftime("%Y-%m-%d")
+class ScrapingBot:
 
-    query.execute(
-        '''
-        SELECT * FROM products ORDER BY id DESC LIMIT 1;
-        '''
-    )
-    db_reponse = query.fetchone()
+    def __init__(self):
+        self.db = DataBaseManager()
+        self.scraper = ScraperClient()
+        self.db.start_setup()
 
-    if db_reponse is None:
-        # Sistema iniciando pela primeira vez
-        query.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data, current_date,))
-        connect.commit()
-    else:
-        db_data = db_reponse[1]
-        # 4.1 -> Se o numero for maior
-        difference = int(data) - db_data
-        if difference > 1:
-            #   4.1.1 -> Notificar no Discord + Salvar novo numero no banco de dados
-            query.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data, current_date,))
-            connect.commit()
-            logging.info("Novos Produtos Encontrados e Salvos com Sucesso!")
-            discord_message = {
-                "username": "ScrapingBot",
-                "content": f"@everyone 🚨 **NOVOS PRODUTOS!**\n\nAcabou de cair: **{data - db_data} PRODUTO(S)**!"
-            }
-            SendMessage(discord_message)
+    def rn_service(self):
+        try:
+            data = self.scraper.catch_data(self.scraper)
+            data_valid = validate_data(data)
+            current_date = datetime.now().strftime("%Y-%m-%d")
 
-        # 4.2 -> Se o numero for menor
-        elif int(data) < db_data:
-            #   4.2.1 -> Apenas salve o numero no banco de dados
-            query.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data, current_date))
-            connect.commit()
+            with self.db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                '''
+                SELECT amount FROM products ORDER BY id DESC LIMIT 1;
+                '''
+                )
+                db_response = cursor.fetchone()
+
+                if db_response is None:
+                    # Sistema iniciando pela primeira vez
+                    cursor.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data_valid, current_date,))
+                    conn.commit()
+                    message = {
+                        "username": "LoggingsBot",
+                        "content": f"[DATABASE] - Iniciando DataBase"
+                        }   
+                    send_message(discord_message=message, canal=LoggingsBot)
+                    logging.info(f"[DATABASE] - Iniciando DataBase")
+                    return None
+                
+                db_data = db_response[0]
+                # 4.1 -> Se o numero for maior
+                difference = data_valid - db_data
+                if difference > 2:
+                    #   4.1.1 -> Notificar no Discord + Salvar novo numero no banco de dados
+                    cursor.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data_valid, current_date,))
+                    conn.commit()
+                    logging.info("Novos Produtos Encontrados e Salvos com Sucesso!")
+                    discord_message = {
+                        "username": "ScrapingBot",
+                        "content": f"@everyone 🚨 **NOVOS PRODUTOS!**\n\nAcabou de cair: **{data_valid - db_data} PRODUTO(S)**!"
+                    }
+                    send_message(discord_message, canal=DScraping)
+
+                # 4.2 -> Se o numero for menor
+                elif data_valid < db_data:
+                    #   4.2.1 -> Apenas salve o numero no banco de dados
+                    cursor.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data_valid,  current_date))
+                    conn.commit()
+        except ValueError as e:
+            logging.error(f"Erro de Validação/Lógica: {e}")
+        except Exception as e:
+            logging.error(f"Erro inesperado no serviço: {e}")
