@@ -57,7 +57,7 @@ class ScrapingBot:
                 db_data = db_response[0]
                 # 4.1 -> Se o numero for maior
                 difference = data_valid - db_data
-                if difference > 2:
+                if difference > 3:
                     #   4.1.1 -> Notificar no Discord + Salvar novo numero no banco de dados
                     cursor.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data_valid, current_date,))
                     conn.commit()

@@ -10,16 +10,22 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     level=logging.INFO,
     filename="loggings.log",
+    filemode="w"
     )
+
+bot = ScrapingBot()
+rep = 0
 
 if __name__ == "__main__":
     while True:
         delay = random.uniform(45, 75)
         message = {
             "username": "LoggingsBot",
-            "content": f"Iniciando Raspagem - Proxima em: {delay:.2f}s"
+            "content": f"[HEALTHBEAT] Iniciando Scraping - Proxima em: {delay:.2f}s"
             }
-        bot = ScrapingBot()
         ScrapingBot.rn_service(bot)
-        send_message(discord_message=message, canal=LoggingsBot)
+        if rep >= 10:
+            send_message(discord_message=message, canal=LoggingsBot)
+            rep = 0
+        rep += 1
         time.sleep(delay)
