@@ -10,7 +10,9 @@ load_dotenv()
 
 class DataBaseManager:
     def __init__(self, db_path: str = None):
-        self.db_path = db_path or os.path.join(os.getcwd(), "DataBase.db")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(current_dir)
+        self.db_path = db_path or os.path.join(root_dir, "DataBase.db")
  
     @contextmanager
     def get_connection(self):

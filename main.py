@@ -1,3 +1,4 @@
+import os
 import time
 import random
 import logging
@@ -5,11 +6,13 @@ from src.webhook import LoggingsBot
 from src.service import ScrapingBot
 from src.notifier import send_message
 
+root_dir = os.path.dirname(os.path.abspath(__file__))
+
 logging.basicConfig(
     format='%(asctime)s.%(msecs)03d - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     level=logging.INFO,
-    filename="loggings.log",
+    filename=os.path.join(root_dir, "loggings.log"),
     filemode="w"
     )
 
