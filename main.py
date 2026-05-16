@@ -17,18 +17,21 @@ logging.basicConfig(
     )
 
 bot = ScrapingBot()
-rep = 0
+_pass = 0
+_WARNING = 15
 
 if __name__ == "__main__":
     while True:
         delay = random.uniform(45, 75)
-        message = {
+        
+        bot.rn_service()
+        _pass += 1
+
+        if _pass >= _WARNING:
+            message = {
             "username": "LoggingsBot",
             "content": f"[HEALTHBEAT] Iniciando Scraping - Proxima em: {delay:.2f}s"
             }
-        ScrapingBot.rn_service(bot)
-        if rep >= 10:
             send_message(discord_message=message, canal=LoggingsBot)
-            rep = 0
-        rep += 1
+            _pass = 0
         time.sleep(delay)

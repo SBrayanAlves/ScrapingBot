@@ -18,6 +18,8 @@ class ScraperClient:
     def __init__(self):
         self.url = os.getenv("URL")
         self.session = self.create_session()
+        self._pass = 0
+        self._WARNING = 15
 
     def create_session(self) -> requests.Session:
         session = requests.Session()
@@ -73,12 +75,15 @@ class ScraperClient:
                 send_message(discord_message=message, canal=LoggingsBot)
                 logging.warning(f"Dado nao encontrado no JSON!")
                 raise ValueError("Dado nao encontrado")
-                
-            message = {
-                "username": "LoggingsBot",
-                "content": f"Quantidade de produtos atual: {amount}"
-            }
-            send_message(discord_message=message, canal=LoggingsBot)
+            
+            self._pass += 1
+            if self._pass >= self._WARNING:
+                message = {
+                    "username": "LoggingsBot",
+                    "content": f"Quantidade de produtos atual: {amount}"
+                }
+                send_message(discord_message=message, canal=LoggingsBot)
+                self._pass = 0
             return int(amount)
         
         except requests.exceptions.RequestException as error:
