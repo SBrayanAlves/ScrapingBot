@@ -70,11 +70,11 @@ class ScraperClient:
             if amount is None:
                 message = {
                     "username": "LoggingsBot",
-                    "content": f"Dado nao encontrado no JSON!"
+                    "content": f"Data not found in JSON!"
                 }
                 send_message(discord_message=message, canal=LoggingsBot)
-                logging.warning(f"Dado nao encontrado no JSON!")
-                raise ValueError("Dado nao encontrado")
+                logging.warning(f"Data not found in JSON!")
+                raise ValueError("Data not found!")
             
             self._pass += 1
             if self._pass >= self._WARNING:
@@ -89,8 +89,8 @@ class ScraperClient:
         except requests.exceptions.RequestException as error:
             message = {
                 "username": "LoggingsBot",
-                "content": f"[ERRO FINAL DE REDE] - {error}"
+                "content": f"[FINAL NETWORK ERROR] - {error}"
             }
             send_message(discord_message=message, canal=LoggingsBot)
-            logging.warning(f"[ERRO FINAL DE REDE] - {error}")
+            logging.warning(f"[FINAL NETWORK ERROR] - {error}")
             return None

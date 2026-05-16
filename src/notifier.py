@@ -11,7 +11,7 @@ def send_message(discord_message, canal):
             discord_logging = requests.post(WebHook, json=discord_message)
             if discord_logging.status_code in (200, 204):
                 return None
-            logging.warning(f"Erro ao enviar messagem! Tentativa: {_+1}")
+            logging.warning(f"Error sending message! Attempt: {_+1}")
             time.sleep(3)
         except Exception as e:
-            logging.warning(f"Erro ao enviar Mensagem: {e}")
+            logging.warning(f"Error sending message: {e}")

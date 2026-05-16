@@ -9,15 +9,15 @@ from .notifier import send_message
 
 def validate_data(data: any) -> int:
     if data is None:
-        raise ValueError("Scraper retornou None")
+        raise ValueError("Scraper returned None")
 
     try:
         amount = int(data)
         if amount < 0:
-            raise ValueError("Valor negativo")
+            raise ValueError("Negative value")
         return amount
     except (ValueError, TypeError) as e:
-        logging.error(f"Validacao Falhou: {e}")
+        logging.error(f"Validation Failed: {e}")
         raise
 
 class ScrapingBot:
@@ -74,6 +74,6 @@ class ScrapingBot:
                     cursor.execute("INSERT INTO products (amount, date) VALUES (?, ?)", (data_valid,  current_date))
                     conn.commit()
         except ValueError as e:
-            logging.error(f"Erro de Validação/Lógica: {e}")
+            logging.error(f"Validation Error/Logic: {e}")
         except Exception as e:
-            logging.error(f"Erro inesperado no serviço: {e}")
+            logging.error(f"Unexpected service error: {e}")
