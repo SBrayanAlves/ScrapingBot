@@ -10,7 +10,9 @@ from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-load_dotenv()
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(current_dir)
+load_dotenv(os.path.join(root_dir, ".env"))
 
 class ScraperClient:
     def __init__(self):
@@ -54,12 +56,11 @@ class ScraperClient:
             "Sec-Fetch-Site": "same-origin"
         }
 
-    def catch_data(self, scraper) -> Optional[int]:
+    def catch_data(self) -> Optional[int]:
         try:
             time.sleep(random.uniform(1.5, 3.5))
             response = self.session.get(self.url, timeout=10)
-            if response.raise_for_status():
-                logging.warning("Nao foi possivel estabelecer conexao com o site")
+            response.raise_for_status()
 
             data = response.json()
             amount = data.get("data", {}).get("productSearch", {}).get("recordsFiltered", {})

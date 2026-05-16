@@ -29,7 +29,7 @@ class ScrapingBot:
 
     def rn_service(self):
         try:
-            data = self.scraper.catch_data(self.scraper)
+            data = self.scraper.catch_data()
             data_valid = validate_data(data)
             current_date = datetime.now().strftime("%Y-%m-%d")
 

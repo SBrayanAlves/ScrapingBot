@@ -8,10 +8,12 @@ load_dotenv()
 
 # Acessa o Banco
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(current_dir)
+load_dotenv(os.path.join(root_dir, ".env"))
+
 class DataBaseManager:
     def __init__(self, db_path: str = None):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        root_dir = os.path.dirname(current_dir)
         self.db_path = db_path or os.path.join(root_dir, "DataBase.db")
  
     @contextmanager
