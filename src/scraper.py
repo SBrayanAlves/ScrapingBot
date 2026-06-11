@@ -18,6 +18,7 @@ load_dotenv(os.path.join(root_dir, ".env"))
 class ScraperClient:
     def __init__(self):
         self.base_url = os.getenv("URL")
+        self.p_url = os.getenv("P_URL")
         self.ua_factory = UserAgent()
         self.session = self.create_session()
         self._pass = 0
@@ -36,6 +37,12 @@ class ScraperClient:
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         session.headers.update(self._get_headers())
+
+        try: 
+            session.get(self.p_url, timeout=10)
+        except requests.exceptions.RequestException:
+            pass
+        
         return session
     
     def _get_headers(self) -> dict:
