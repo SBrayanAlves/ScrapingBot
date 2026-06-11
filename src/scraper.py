@@ -3,6 +3,7 @@ import requests
 import time
 import random
 import logging
+from fake_useragent import UserAgent
 from .webhook import LoggingsBot
 from .notifier import send_message
 from typing import Optional
@@ -16,7 +17,8 @@ load_dotenv(os.path.join(root_dir, ".env"))
 
 class ScraperClient:
     def __init__(self):
-        self.url = os.getenv("URL")
+        self.base_url = os.getenv("URL")
+        self.ua_factory = UserAgent()
         self.session = self.create_session()
         self._pass = 0
         self._WARNING = 15
@@ -33,47 +35,47 @@ class ScraperClient:
         adapter = HTTPAdapter(max_retries=retry)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
-        
         session.headers.update(self._get_headers())
         return session
     
     def _get_headers(self) -> dict:
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
-            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        ]
         return {
-            "User-Agent": random.choice(user_agents),
+            "User-Agent": self.ua_factory.random,
             "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "pt-BR,pt;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
             "Connection": "keep-alive",
+            "Referer": os.getenv('REFERER'), 
+            "content-type": "application/json",
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin"
+            "Sec-Fetch-Site": "same-origin",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         }
 
     def catch_data(self) -> Optional[int]:
         try:
+            self.session.headers.update({"User-Agent": self.ua_factory.random})
+
+            timestamp = int(time.time())
+            dynamic_url = f"{self.base_url}&_={timestamp}"
+
             time.sleep(random.uniform(1.5, 3.5))
-            response = self.session.get(self.url, timeout=10)
+            
+            response = self.session.get(dynamic_url, timeout=10)
             response.raise_for_status()
 
             data = response.json()
-            amount = data.get("data", {}).get("productSearch", {}).get("recordsFiltered", {})
+            amount = data.get("data", {}).get("productSearch", {}).get("recordsFiltered")
             
             if amount is None:
                 message = {
                     "username": "LoggingsBot",
-                    "content": f"Data not found in JSON!"
+                    "content": "Data not found in JSON!"
                 }
                 send_message(discord_message=message, canal=LoggingsBot)
-                logging.warning(f"Data not found in JSON!")
+                logging.warning("Data not found in JSON!")
                 raise ValueError("Data not found!")
             
             self._pass += 1
@@ -84,6 +86,7 @@ class ScraperClient:
                 }
                 send_message(discord_message=message, canal=LoggingsBot)
                 self._pass = 0
+                
             return int(amount)
         
         except requests.exceptions.RequestException as error:
