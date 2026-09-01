@@ -240,3 +240,25 @@ def test_taxa_de_sucesso_e_p95():
     tracker.record_failure()
     assert tracker.success_rate == pytest.approx(0.8)
     assert tracker.latency_p95_ms == 400
+
+
+def test_fora_da_janela_avisa_no_log_e_nao_fica_mudo(caplog):
+    """Silencio total e indistinguivel de processo travado.
+
+    Antes, um bot saudavel fora do horario nao escrevia UMA linha sequer -- o
+    dono olhava o log vazio e concluia que estava quebrado.
+    """
+    settings = make_settings(
+        active_days=frozenset({1, 3, 6}), active_hour_start=8, active_hour_end=18
+    )
+    meia_noite = datetime(2026, 9, 1, 0, 40, tzinfo=ZoneInfo("America/Sao_Paulo"))
+    clock = FakeClock(start=meia_noite.astimezone(UTC))
+    scheduler, _, _, _ = build([100], settings=settings, clock=clock)
+
+    with caplog.at_level("INFO"):
+        scheduler.run_forever(max_cycles=3)
+
+    fora = [r for r in caplog.records if "Fora da janela" in r.message]
+    assert len(fora) == 1, "deve avisar uma vez, nao a cada ciclo"
+    assert "ter, qui, dom" in caplog.text
+    assert "08h-18h" in caplog.text

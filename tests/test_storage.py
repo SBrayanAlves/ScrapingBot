@@ -195,3 +195,19 @@ def test_manutencao_so_roda_uma_vez_por_dia(sqlite_repo, tmp_path):
     maintenance.run(NOW)
     assert not maintenance.is_due(NOW + timedelta(hours=6))
     assert maintenance.is_due(NOW + timedelta(hours=25))
+
+
+def test_ultimo_snapshot_e_o_mais_recente_nao_o_de_id_maior(sqlite_repo):
+    """O `import-legacy` grava historico antigo com ids novos.
+
+    Ordenando por id, a "ultima" observacao viraria uma de meses atras -- e o
+    bot compararia a coleta de hoje contra ela, podendo disparar um alerta
+    falso para o canal publico.
+    """
+    sqlite_repo.save_snapshot(Snapshot(observed_at=NOW, amount=75))  # hoje
+    antiga = datetime(2026, 6, 11, 12, 0, tzinfo=UTC)
+    sqlite_repo.save_snapshot(Snapshot(observed_at=antiga, amount=377))  # importada
+
+    ultima = sqlite_repo.last_snapshot()
+    assert ultima is not None
+    assert ultima.amount == 75, "pegou a linha de id maior em vez da mais recente"

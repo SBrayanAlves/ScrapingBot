@@ -59,6 +59,7 @@ class Scheduler:
         )
         self._rng = rng or random.SystemRandom()
         self._shutdown = threading.Event()
+        self._fora_da_janela: bool | None = None  # None = ainda nao sabemos
         self._deadman_session = requests.Session()
 
     # ------------------------------------------------------------- ciclo de vida
@@ -92,8 +93,25 @@ class Scheduler:
             cycles += 1
 
             if not self._within_window():
+                # Sem esta linha o bot fica horas em silencio absoluto e parece
+                # morto -- indistinguivel de um processo travado. Loga so na
+                # TRANSICAO, senao polui o log com uma linha por minuto.
+                if self._fora_da_janela is not True:
+                    self._fora_da_janela = True
+                    log.info(
+                        "Fora da janela de operacao (%s, %02dh-%02dh %s). "
+                        "Aguardando; nenhuma coleta sera feita ate la.",
+                        self._descreve_dias(),
+                        self.settings.active_hour_start,
+                        self.settings.active_hour_end,
+                        self.settings.timezone.key,
+                    )
                 self._sleep(self._seconds_until_window())
                 continue
+
+            if self._fora_da_janela:
+                log.info("Dentro da janela de operacao -- retomando as coletas")
+            self._fora_da_janela = False
 
             run_id = new_run_id()
             try:
@@ -202,6 +220,13 @@ class Scheduler:
         if settings.active_days is not None and local.weekday() not in settings.active_days:
             return False
         return settings.active_hour_start <= local.hour < settings.active_hour_end
+
+    def _descreve_dias(self) -> str:
+        """Traduz `active_days` para algo legivel no log."""
+        if self.settings.active_days is None:
+            return "todos os dias"
+        nomes = ("seg", "ter", "qua", "qui", "sex", "sab", "dom")
+        return ", ".join(nomes[dia] for dia in sorted(self.settings.active_days))
 
     def _seconds_until_window(self) -> float:
         """Dorme ate a proxima checagem, nunca mais que 15 minutos.

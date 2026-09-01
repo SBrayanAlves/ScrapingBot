@@ -71,8 +71,13 @@ class SqliteRepository:
     def last_snapshot(self) -> Snapshot | None:
         with self.connection() as conn:
             row = conn.execute(
+                # Ordena por DATA, nao por id. O `import-legacy` insere linhas
+                # historicas com ids novos e datas antigas -- por id, a "ultima"
+                # observacao viraria uma de meses atras e o bot compararia o
+                # valor de hoje contra ela. Como observed_at e ISO-8601 sempre
+                # em UTC (+00:00), a ordem lexicografica e a cronologica.
                 "SELECT id, observed_at, amount, payload_hash "
-                "FROM snapshots ORDER BY id DESC LIMIT 1"
+                "FROM snapshots ORDER BY observed_at DESC, id DESC LIMIT 1"
             ).fetchone()
         if row is None:
             return None
