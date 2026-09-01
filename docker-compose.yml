@@ -1,0 +1,50 @@
+# Documentacao executavel do deploy inteiro.  REL-3
+#
+# Antes, volume / env_file / politica de restart / limite de log dependiam de
+# alguem lembrar da linha de comando certa -- e essa linha nao estava escrita
+# em lugar nenhum. Um deploy que so existe na memoria de quem o fez nao e um
+# deploy, e uma lembranca.
+#
+#   docker compose up -d --build
+#   docker compose logs -f
+#   docker compose exec scrapingbot python -m scrapingbot stats
+
+services:
+  scrapingbot:
+    build: .
+    image: scrapingbot:2.0.0        # ENG-13: tag de versao, nao so `latest`
+    container_name: scrapingbot
+    env_file: .env
+
+    # REL-2: sem isto, qualquer excecao que escape encerra o monitoramento e
+    # ninguem percebe ate alguem notar -- o que, combinado com a ausencia do
+    # dead-man switch, podia levar dias.
+    restart: unless-stopped
+
+    # INF-1: o banco e o unico estado do sistema.
+    volumes:
+      - scrapingbot-data:/app/data
+
+    # OBS-3 resolvido no nivel do runtime: o log nao cresce sem limite.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # REL-6: um vazamento derruba o container, nao o host -- e o OOM killer
+    # nao precisa escolher a vitima.
+    mem_limit: 256m
+    cpus: 0.5
+
+    stop_grace_period: 20s   # ARQ-6: tempo de sobra para o ciclo terminar
+
+    healthcheck:
+      test: ["CMD", "python", "-m", "scrapingbot", "healthcheck", "--max-age-s", "600"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 2m
+
+volumes:
+  scrapingbot-data:

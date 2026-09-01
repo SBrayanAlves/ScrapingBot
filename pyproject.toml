@@ -1,0 +1,101 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scrapingbot"
+version = "2.0.0"
+description = "Monitor de disponibilidade de catalogo com alerta no Discord."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "SBrayanAlves" }]
+keywords = ["scraping", "monitoring", "discord", "sqlite"]
+
+# Dependencias DIRETAS apenas. O que `requests` arrasta junto (certifi, idna,
+# charset-normalizer, urllib3) e consequencia, nao decisao -- fica no lock.  ENG-4
+dependencies = [
+    "requests>=2.32,<3",
+    "python-dotenv>=1.0,<2",
+    # Base IANA de fusos. NAO e opcional: `ZoneInfo("America/Sao_Paulo")`
+    # levanta ZoneInfoNotFoundError no Windows e em imagens minimas.  BUG-7
+    "tzdata>=2024.1",
+    # Anunciamos `br` e `zstd` no Accept-Encoding porque um Chrome real anuncia.
+    # Estas libs sao o que torna esse anuncio honesto.  BUG-6 / SCR-2
+    "brotli>=1.1",
+    "zstandard>=0.22",
+]
+
+[project.optional-dependencies]
+# Fingerprint de TLS/HTTP2 identico ao de um Chrome real.  SCR-6
+# Opcional porque traz binario proprio; sem ele o bot cai no backend `requests`.
+stealth = ["curl_cffi>=0.7,<1"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "responses>=0.25",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-requests",
+    "pip-audit>=2.7",
+]
+
+[project.scripts]
+scrapingbot = "scrapingbot.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/SBrayanAlves/ScrapingBot"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scrapingbot"]
+
+# ---------------------------------------------------------------- ruff  ENG-2
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF", "ARG", "DTZ", "PTH", "S"]
+ignore = [
+    "S101",   # assert -- usado nos testes
+    "RUF001", # ambiguidade unicode em texto pt-BR
+    "RUF002",
+    "RUF003",
+    # N818 exige sufixo `Error` em toda excecao. Aqui os nomes descrevem o
+    # ESTADO do sistema (`UpstreamUnavailable`, `UnexpectedPayload`) e leem
+    # melhor no `except` do que `UpstreamUnavailableError`. Decisao consciente.
+    "N818",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG001", "ARG002", "S105", "S106"]
+
+# ---------------------------------------------------------------- mypy  ENG-2
+[tool.mypy]
+python_version = "3.11"
+files = ["src/scrapingbot"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["curl_cffi.*", "responses.*", "brotli", "brotlicffi", "zstandard"]
+ignore_missing_imports = true
+
+# `fcntl` so existe no POSIX e `msvcrt` so no Windows. O modulo importa cada um
+# dentro do ramo certo em tempo de execucao, mas o mypy analisa em UMA
+# plataforma de cada vez e reclama do ramo da outra.
+[[tool.mypy.overrides]]
+module = ["scrapingbot.lock"]
+disable_error_code = ["attr-defined", "import-not-found"]
+
+# --------------------------------------------------------------- pytest  ENG-1
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Dispensa o hack de sys.path no conftest: o pacote e importado de src/.
+pythonpath = ["src", "tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["error::DeprecationWarning"]

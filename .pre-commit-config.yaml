@@ -1,0 +1,33 @@
+# ENG-2 -- ferramenta que depende de disciplina nao funciona.
+#   pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      # O .env nunca deve entrar no repositorio -- e a credencial de escrita
+      # dos webhooks esta dentro dele.  SEC-1
+      - id: detect-private-key
+      # BUG-1: o requirements.txt em UTF-16 quebrava o build. Este hook pega.
+      - id: fix-byte-order-marker
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        args: [--config-file=pyproject.toml]
+        pass_filenames: false

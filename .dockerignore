@@ -1,10 +1,28 @@
 .venv
 .env
 .git
+.github
 __pycache__
-Project.txt
+**/__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+tests
+docs
 README.md
-DataBase.db
+CHANGELOG.md
+MELHORIAS.md
 .gitignore
 .env.example
-loggings.log
+.editorconfig
+.pre-commit-config.yaml
+
+# INF-3: o `.dockerignore` antigo ignorava `DataBase.db` mas NAO a pasta
+# `data/` -- entao o `COPY . .` assava o banco local, com o historico real de
+# coletas, dentro de cada imagem.
+data/
+*.db
+*.db-wal
+*.db-shm
+*.log
