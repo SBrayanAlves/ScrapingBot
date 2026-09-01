@@ -69,6 +69,7 @@ def make_settings(**kwargs) -> Settings:
         "log_file": None,
         "log_max_bytes": 1000,
         "log_backups": 1,
+        "env_file": None,
     }
     defaults.update(kwargs)
     return Settings(**defaults)

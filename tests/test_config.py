@@ -176,3 +176,55 @@ def test_filtro_aplica_redacao_nos_argumentos():
     )
     filtro.filter(record)
     assert "SEGREDO" not in record.getMessage()
+
+
+# ------------------------------------------------- descoberta do arquivo .env
+def test_env_e_encontrado_a_partir_do_diretorio_atual(env, tmp_path, monkeypatch):
+    """O caso do cron: `cd /projeto && .venv/bin/python -m scrapingbot run`.
+
+    Com `pip install .` o pacote vive em site-packages, entao procurar o .env
+    a partir de onde o CODIGO esta aponta para dentro da venv. O bot morria no
+    boot dizendo que faltava URL, mesmo com o .env preenchido do lado.
+    """
+    projeto = tmp_path / "projeto"
+    projeto.mkdir()
+    (projeto / ".env").write_text(
+        "URL=https://do-arquivo.example/api\n"
+        "P_URL=https://do-arquivo.example\n"
+        "REFERER=https://do-arquivo.example\n"
+        "DISCORD_ALERT_WEBHOOK=https://discord.com/api/webhooks/7/zzz\n"
+        "DISCORD_LOG_WEBHOOK=https://discord.com/api/webhooks/8/www\n",
+        encoding="utf-8",
+    )
+    for chave in MINIMO:
+        monkeypatch.delenv(chave, raising=False)
+    monkeypatch.delenv("DB_PATH", raising=False)
+    monkeypatch.chdir(projeto)
+
+    settings = load_settings()
+    assert settings.env_file == projeto / ".env"
+    assert settings.target_url == "https://do-arquivo.example/api"
+
+
+def test_banco_fica_ao_lado_do_env_encontrado(env, tmp_path, monkeypatch):
+    """Sem DB_PATH, o banco acompanha o .env -- nunca o cwd por acidente."""
+    projeto = tmp_path / "outro"
+    projeto.mkdir()
+    (projeto / ".env").write_text(
+        "URL=https://x.example/api\nP_URL=https://x.example\nREFERER=https://x.example\n"
+        "DISCORD_ALERT_WEBHOOK=https://discord.com/api/webhooks/1/a\n"
+        "DISCORD_LOG_WEBHOOK=https://discord.com/api/webhooks/2/b\n",
+        encoding="utf-8",
+    )
+    for chave in MINIMO:
+        monkeypatch.delenv(chave, raising=False)
+    monkeypatch.delenv("DB_PATH", raising=False)
+    monkeypatch.chdir(projeto)
+
+    assert load_settings().db_path == projeto / "data" / "scrapingbot.db"
+
+
+def test_env_file_explicito_inexistente_nao_cai_para_o_cwd(env, tmp_path):
+    """`--env-file` apontando para nada = usar so o ambiente, sem surpresa."""
+    settings = load_settings(tmp_path / "nao-existe.env")
+    assert settings.env_file is None

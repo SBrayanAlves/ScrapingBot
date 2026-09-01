@@ -10,9 +10,9 @@ __pycache__
 .ruff_cache
 tests
 docs
-README.md
 CHANGELOG.md
-MELHORIAS.md
+# README.md NAO entra aqui: o pyproject.toml o declara em `readme = "README.md"`,
+# entao o `pip install .` do Dockerfile precisa dele no contexto de build.
 .gitignore
 .env.example
 .editorconfig

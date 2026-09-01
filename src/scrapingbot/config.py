@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from .errors import ConfigError
 
@@ -34,12 +34,38 @@ _LEGACY_ALIASES = {
 
 
 def _project_root() -> Path:
-    """Raiz do repo em dev; irrelevante quando instalado como pacote.
+    """Raiz do repo quando se roda a partir do codigo-fonte.
 
-    O caminho do banco NAO depende disto -- vem de DB_PATH, nunca do cwd.
-    BUG-5 / ENG-7
+    So vale para instalacao editavel (`pip install -e .`) ou execucao direta de
+    dentro de src/. Com `pip install .` o pacote vive em site-packages e este
+    caminho aponta para dentro da venv -- por isso NAO se pode depender so dele.
+    Ver `_resolve_env_file`.
     """
     return Path(__file__).resolve().parent.parent.parent
+
+
+def _resolve_env_file(explicito: str | Path | None) -> Path | None:
+    """Descobre qual .env usar, na ordem de prioridade que nao surpreende.
+
+    1. o que foi pedido explicitamente (`--env-file`);
+    2. o primeiro `.env` encontrado subindo a partir do DIRETORIO ATUAL --
+       e o que faz `cd /caminho/do/projeto && python -m scrapingbot run`
+       funcionar no cron/systemd, inclusive com `pip install .`;
+    3. a raiz do codigo-fonte, para quando se roda de dentro do repo.
+
+    Sem o passo 2, uma instalacao nao-editavel procurava o .env dentro de
+    `.venv/lib/pythonX.Y/` e o bot morria no boot dizendo que faltava `URL`.
+    """
+    if explicito is not None:
+        caminho = Path(explicito)
+        return caminho if caminho.is_file() else None
+
+    do_cwd = find_dotenv(usecwd=True)
+    if do_cwd:
+        return Path(do_cwd)
+
+    da_fonte = _project_root() / ".env"
+    return da_fonte if da_fonte.is_file() else None
 
 
 def _raw(name: str) -> str | None:
@@ -153,6 +179,7 @@ class Settings:
     log_file: Path | None  # None = so stdout   OBS-1
     log_max_bytes: int
     log_backups: int
+    env_file: Path | None  # de onde a config veio; None = so o ambiente
 
     # ------------------------------------------------------------------- util
     def local(self, moment: datetime) -> datetime:
@@ -192,10 +219,14 @@ def _parse_days(raw: str) -> frozenset[int] | None:
 
 def load_settings(env_file: str | Path | None = None) -> Settings:
     """Le o ambiente, valida e congela. Se algo falta, falha aqui e com nome."""
-    root = _project_root()
-    load_dotenv(env_file or (root / ".env"), override=False)
+    arquivo = _resolve_env_file(env_file)
+    if arquivo is not None:
+        load_dotenv(arquivo, override=False)
 
-    db_path = Path(_get("DB_PATH", root / "data" / "scrapingbot.db"))
+    # O banco fica ao lado do .env quando ha um; senao, ao lado do codigo.
+    # Em nenhum dos casos depende do cwd por acidente, como acontecia no BUG-5.
+    base = arquivo.parent if arquivo is not None else _project_root()
+    db_path = Path(_get("DB_PATH", base / "data" / "scrapingbot.db"))
 
     interval_min = _get_float("INTERVAL_MIN_S", 45.0)
     interval_max = _get_float("INTERVAL_MAX_S", 75.0)
@@ -272,4 +303,5 @@ def load_settings(env_file: str | Path | None = None) -> Settings:
         log_file=Path(log_file_raw) if log_file_raw else None,
         log_max_bytes=_get_int("LOG_MAX_BYTES", 5_000_000),
         log_backups=_get_int("LOG_BACKUPS", 3),
+        env_file=arquivo,
     )
